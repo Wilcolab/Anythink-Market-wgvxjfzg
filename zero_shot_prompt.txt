@@ -1,0 +1,35 @@
+ZERO-SHOT PROMPT
+===============
+
+A zero-shot prompt requires NO examples - just clear instructions for the task.
+
+PROMPT:
+-------
+
+Create a Python function to convert text to snake_case.
+
+Handle special characters by removing them.
+
+Convert spaces and hyphens to underscores.
+
+Ensure the output is entirely lowercase.
+
+Include type hints and a docstring.
+
+
+EXPLANATION:
+-----------
+
+Why this works:
+- Directly states the requirement without examples
+- Assumes the model understands the task from keywords alone
+- Works best for common, well-known tasks
+- Most efficient (no examples needed)
+
+When to use:
++ Simple, standard tasks (conversions, basic operations)
++ Common programming patterns (error handling, validation)
++ Well-defined specifications
+- NOT ideal for complex or novel tasks
+
+Result: Function produces correct output with minimal context
