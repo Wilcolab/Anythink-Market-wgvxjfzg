@@ -101,7 +101,7 @@ jobs:
 
       - name: Install backend dependencies
         working-directory: ./backend
-        run: npm install
+        run: npm install --legacy-peer-deps
 
       - name: Wait for MongoDB
         run: |

@@ -141,7 +141,7 @@ jobs:
 
       - name: Install dependencies
         working-directory: ./backend
-        run: npm install
+        run: npm install --legacy-peer-deps
 
       - name: Verify MongoDB is running
         run: |
