@@ -1,0 +1,195 @@
+name: Debug CI Issues
+
+on:
+  workflow_dispatch:  # Manual trigger from GitHub Actions UI
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  debug-environment:
+    runs-on: ubuntu-latest
+    
+    services:
+      mongodb:
+        image: mongo:6.0
+        ports:
+          - 27017:27017
+        options: >-
+          --health-cmd mongosh
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Show Node versions
+        run: |
+          echo "Node version:"
+          node --version
+          echo ""
+          echo "NPM version:"
+          npm --version
+
+      - name: Show backend package.json scripts
+        working-directory: ./backend
+        run: |
+          echo "Available scripts in backend:"
+          cat package.json | grep -A 20 '"scripts"'
+
+      - name: Show frontend package.json scripts
+        working-directory: ./frontend
+        run: |
+          echo "Available scripts in frontend:"
+          cat package.json | grep -A 20 '"scripts"'
+
+      - name: Check MongoDB connectivity
+        run: |
+          echo "Checking MongoDB container status..."
+          docker ps | grep mongo || echo "MongoDB container not found in docker ps"
+          echo ""
+          echo "Attempting to connect to MongoDB..."
+          for i in {1..10}; do
+            if nc -z localhost 27017; then
+              echo "✓ Port 27017 is open"
+              break
+            fi
+            echo "Attempt $i: Port 27017 not ready"
+            sleep 1
+          done
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Install and test backend connectivity
+        working-directory: ./backend
+        run: |
+          echo "Installing dependencies..."
+          npm ci
+          echo ""
+          echo "Testing MongoDB connection..."
+          node -e "
+          const mongoose = require('mongoose');
+          mongoose.connect('mongodb://localhost:27017/anythink-market')
+            .then(() => {
+              console.log('✓ Successfully connected to MongoDB');
+              process.exit(0);
+            })
+            .catch(err => {
+              console.log('✗ Failed to connect to MongoDB');
+              console.log('Error:', err.message);
+              process.exit(1);
+            });
+          "
+
+      - name: Check available test files
+        working-directory: ./backend
+        run: |
+          echo "Test files found:"
+          find ./tests -type f -name "*.json" -o -name "*.js" | head -20
+
+      - name: Install Newman for API testing
+        run: npm install -g newman
+
+      - name: List API test collections
+        working-directory: ./backend/tests
+        run: |
+          echo "Postman collections found:"
+          ls -la *.json || echo "No JSON files found"
+
+      - name: Validate Postman collection
+        working-directory: ./backend/tests
+        continue-on-error: true
+        run: |
+          if [ -f api-tests.postman.json ]; then
+            echo "Validating api-tests.postman.json..."
+            cat api-tests.postman.json | jq . > /dev/null && echo "✓ Valid JSON"
+          fi
+          if [ -f env-api-tests.postman.json ]; then
+            echo "Validating env-api-tests.postman.json..."
+            cat env-api-tests.postman.json | jq . > /dev/null && echo "✓ Valid JSON"
+          fi
+
+  simple-backend-test:
+    runs-on: ubuntu-latest
+    needs: debug-environment
+
+    services:
+      mongodb:
+        image: mongo:6.0
+        ports:
+          - 27017:27017
+        options: >-
+          --health-cmd mongosh
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: backend/package.json
+
+      - name: Install dependencies
+        working-directory: ./backend
+        run: npm ci
+
+      - name: Verify MongoDB is running
+        run: |
+          echo "Checking MongoDB status..."
+          sleep 2
+          if nc -z localhost 27017; then
+            echo "✓ MongoDB is running on port 27017"
+          else
+            echo "✗ MongoDB is NOT running on port 27017"
+            exit 1
+          fi
+
+      - name: Seed database
+        working-directory: ./backend
+        env:
+          MONGODB_URI: mongodb://localhost:27017/anythink-market
+          NODE_ENV: test
+        continue-on-error: true
+        run: npm run seeds || npm run seed || echo "No seed script available"
+
+      - name: Start backend and run tests
+        working-directory: ./backend
+        env:
+          MONGODB_URI: mongodb://localhost:27017/anythink-market
+          NODE_ENV: test
+          PORT: 3000
+        run: |
+          echo "Starting backend server..."
+          npm start &
+          BACKEND_PID=$!
+          
+          echo "Waiting for backend to start..."
+          sleep 3
+          
+          echo "Testing backend health..."
+          if curl -f http://localhost:3000/api/ping; then
+            echo ""
+            echo "✓ Backend is responding"
+            echo ""
+            echo "Running tests..."
+            npm test
+            TEST_RESULT=$?
+          else
+            echo "✗ Backend is not responding"
+            echo "Checking backend logs..."
+            jobs
+            TEST_RESULT=1
+          fi
+          
+          kill $BACKEND_PID 2>/dev/null || true
+          exit $TEST_RESULT
