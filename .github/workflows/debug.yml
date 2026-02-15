@@ -68,7 +68,7 @@ jobs:
         working-directory: ./backend
         run: |
           echo "Installing dependencies..."
-          npm ci
+          npm install
           echo ""
           echo "Testing MongoDB connection..."
           node -e "
@@ -141,7 +141,7 @@ jobs:
 
       - name: Install dependencies
         working-directory: ./backend
-        run: npm ci
+        run: npm install
 
       - name: Verify MongoDB is running
         run: |
