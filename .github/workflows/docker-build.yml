@@ -59,8 +59,10 @@ jobs:
       - name: Verify docker-compose configuration
         run: docker-compose config
 
-      - name: Check for Docker vulnerabilities
-        run: |
-          docker pull aquasec/trivy:latest
-          docker run --rm -v /var/run/docker.sock:/var/run/docker.sock \
-            aquasec/trivy:latest config docker-compose.yml || true
+      - name: Scan Dockerfiles and filesystem for vulnerabilities
+        uses: aquasecurity/trivy-action@v0.11.0
+        with:
+          scan-type: fs
+          vuln-type: 'os,library'
+          severity: 'CRITICAL,HIGH'
+          ignore-unfixed: false
