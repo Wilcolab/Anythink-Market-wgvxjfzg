@@ -18,10 +18,21 @@ jobs:
         with:
           node-version: "16"
 
-      - name: Start MongoDB
-        uses: supercharge/mongodb-github-action@1.6.0
-        with:
-          mongodb-version: "4.4"
+      - name: Start MongoDB service
+        run: echo "Using job-level service for MongoDB; service available on localhost:27017"
+
+    services:
+      mongodb:
+        image: mongo:6.0
+        ports:
+          - 27017:27017
+        options: >-
+          --health-cmd mongosh
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        env:
+          MONGO_INITDB_DATABASE: anythink-market
 
       - uses: oNaiPs/secrets-to-env-action@v1
         with:

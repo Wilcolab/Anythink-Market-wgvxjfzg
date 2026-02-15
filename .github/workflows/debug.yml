@@ -68,7 +68,7 @@ jobs:
         working-directory: ./backend
         run: |
           echo "Installing dependencies..."
-          npm install
+          npm install --legacy-peer-deps
           echo ""
           echo "Testing MongoDB connection..."
           node -e "
