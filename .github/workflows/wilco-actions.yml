@@ -5,7 +5,7 @@ on:
 
 jobs:
   wilco:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     timeout-minutes: 10
     name: Pr checks
 
@@ -18,10 +18,12 @@ jobs:
         with:
           node-version: "16"
 
-      - name: Set up Docker
-        uses: docker/setup-docker@v2
-        with:
-          version: '24.0.5'
+      - name: Upgrade Docker to latest stable
+        run: |
+          sudo apt-get update
+          sudo apt-get remove -y docker docker-engine docker.io containerd runc || true
+          curl -fsSL https://get.docker.com | sh
+          docker --version
 
       - name: Start MongoDB
         uses: supercharge/mongodb-github-action@1.10.0
